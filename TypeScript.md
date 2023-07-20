@@ -95,6 +95,8 @@
    const req = { url: "https://example.com", method: "GET" };
    handleRequest(req.url, req.method); //error Argument of type 'string' is not assignable to parameter of type '"GET" | "POST"'.
    
+   ```
+
 //使用as const可以解决上面的问题，将所有属性设定为字面量类型
    const req = { url: "https://example.com", method: "GET" } as const
 ```
@@ -109,7 +111,7 @@
      // No error
      console.log(x!.toFixed());
    }
-   ```
+```
 
    
 
@@ -287,7 +289,136 @@
 
 ## 对象类型
 
+1. index签名
 
+   对于只知道属性的值类型，但不知道其属性名的情况，可以使用index签名
 
+   ```ts
+   interface StringArray { //对于所有number的属性名，其值只能是string
+     [index: number]: string;
+   }
+   
+   interface ReadonlyStringArray { //还可以和readonly进行组合，使number的属性都无法修改
+     readonly [index: number]: string;
+   }
+   ```
 
+2. 严格类型检测
 
+   ```ts
+   interface SquareConfig {
+     color?: string;
+     width?: number;
+   }
+   function createSquare(config: SquareConfig): { color: string; area: number } {
+     return {
+       color: config.color || "red",
+       area: config.width ? config.width * config.width : 20,
+     };
+   }
+   let mySquare = createSquare({ colour: "red", width: 100 });//通过字面量创建的对象会进行严格类型检查，如果有任何一个属性不存在目标类型中就会报错
+   /*
+   解决方法1：
+       interface SquareConfig {
+         color?: string;
+         width?: number;
+         [propName: string]: any;  //使这个类型可以被添加其他string类型的属性
+       }
+   解决方法2：
+       let squareOptions = { colour: "red", width: 100 };
+       let mySquare = createSquare(squareOptions);  //严格类型检查只会对字面量对象进行检测，对变量不会检	查，只要传入的变量和目标类型有至少一个属性相交就不会报错
+   */
+   ```
+
+3. 类型的继承与并集
+
+   ```ts
+   interface Colorful {
+     color: string;
+   }
+   interface Circle {
+     radius: number;
+   }
+   interface ColorfulCircle extends Colorful, Circle {} //extends可以继承多种类型
+   const cc: ColorfulCircle = {
+     color: "red",
+     radius: 42,
+   };
+   
+   interface Colorful {
+     color: string;
+   }
+   interface Circle {
+     radius: number;
+   }
+   type ColorfulCircle = Colorful & Circle; // &之后，新类型拥有两个类型的所有属性
+   ```
+
+4. 泛型类型
+
+   除了在函数中可以声明泛型，类型定义中也可以声明泛型	
+
+   ```ts
+   interface Box<Type> {
+     contents: Type;
+   }
+   
+   type OneOrMany<Type> = Type | Type[]; //type也可以用泛型，且可以组合更多类型
+   ```
+
+5. 元组tuple
+
+   ```ts
+   type StringNumberPair = [string, number];//元组就像一种指定长度和类型的array
+   
+   //可以使用...的语法
+   type StringNumberBooleans = [string, number, ...boolean[]];
+   type StringBooleansNumber = [string, ...boolean[], number];
+   type BooleansStringNumber = [...boolean[], string, number];
+   
+   function doSomething(pair: readonly [string, number]) { //可以使用readonly语法与as const声明自变量类型语法
+     // ...
+   }
+   ```
+
+## 类型操作
+
+通过已有的类型创建新的类型
+
+### 泛型
+
+1. 两种不同的泛型interface
+
+   ```ts
+   interface GenericIdentityFn{ //可以通过这种方式来定义泛型函数类型, 类似定义带有属性的方法类型的语法
+     <Type>(arg: Type): Type; 
+   }
+   function identity<Type>(arg: Type): Type {
+     return arg;
+   }
+   let myIdentity: GenericIdentityFn = identity; //这种情况下泛型对外部是不可见的，不需要赋值，其会自动决定
+   
+   interface GenericIdentityFn<Type> { //还可以把泛型放到外面
+     (arg: Type): Type;
+   }
+   function identity<Type>(arg: Type): Type {
+     return arg;
+   }
+   let myIdentity: GenericIdentityFn<number> = identity;//此时必须明确传入泛型变量，此处是number
+   ```
+
+2. 泛型class
+
+   ```ts
+   class GenericNumber<NumType> { //在类名后面跟泛型，且不能对static成员上用泛型
+     zeroValue: NumType;
+     add: (x: NumType, y: NumType) => NumType;
+   }
+   let myGenericNumber = new GenericNumber<number>();
+   myGenericNumber.zeroValue = 0;
+   myGenericNumber.add = function (x, y) {
+     return x + y;
+   };
+   ```
+
+   
