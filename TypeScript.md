@@ -385,8 +385,6 @@
 
 通过已有的类型创建新的类型
 
-### 泛型
-
 1. 两种不同的泛型interface
 
    ```ts
@@ -419,6 +417,164 @@
    myGenericNumber.add = function (x, y) {
      return x + y;
    };
+   ```
+
+
+3. keyof操作符
+
+   `keyof` 以对象作为参数，会生成其键的string或者number的字面联合类型
+
+   ```ts
+   type Point = { x: number; y: number };
+   type P = keyof Point; // type P = "x" | "y"
+   ```
+
+4. typeof关键字
+
+   用在变量上
+
+   ```ts
+   function f() {
+     return { x: 10, y: 3 };
+   }
+   type P = ReturnType<f>; //此处会报错，因为f是一个value，而不是一个类型值，这时就需要使用typeof来获取函数的类型
+   ```
+
+5. 使用泛型参数作为其他泛型的约束
+
+   关键字：`keyof` `in`
+
+   ```ts
+   //keyof
+   function getProperty<Type, Key extends keyof Type>(obj: Type, key: Key) {
+     return obj[key];
+   }
+   let x = { a: 1, b: 2, c: 3, d: 4 };
+   getProperty(x, "a");
+   getProperty(x, "m"); //报错 m不存在与x的键中
+   
+   //in 切记不要用于interface, 否则会报错
+   type name = 'firstname' | 'lastname'
+   type TName = {
+     [key in name]: string
+   }
+   // TName = { firstname: string, lastname: string }
+   
+   //使用案例
+   function getValue(o:object, key: string){
+     return o[key]
+   }
+   const obj1 = { name: '张三', age: 18 }
+   const values = getValue(obj1, 'name') //无法确定返回类型， 且key也无法限定
+   //改进
+   function getValue<T extends Object, K extends keyof T>(o: T, key: K):T[K]{
+     return o[key]
+   }
+   const obj1 = { name: '张三', age: 18 }
+   const values = getValue(obj1, 'name')
+   ```
+
+6. 通过键名获取类型
+
+   主要是通过`[]`来获取, **且只能用在type上**
+
+   ```ts
+   type Person = { age: number; name: string; alive: boolean };
+   type Age = Person["age"]; // age = number
+   
+   type I1 = Person["age" | "name"];  //还可以和| keyof联合使用
+   type I2 = Person[keyof Person];
+   type AliveOrName = "alive" | "name";
+   type I3 = Person[AliveOrName];
+   
+   //对于数组类型，还可以使用number来获取所有元素的类型
+   const MyArray = [
+     { name: "Alice", age: 15 },
+     { name: "Bob", age: 23 },
+     { name: "Eve", age: 38 },
+   ];
+   type Person = typeof MyArray[number]; //Person = {name: string, age: number}
+   type Age = typeof MyArray[number]["age"]; //Person = number
+   ```
+
+7. 条件类型
+
+   ```ts
+   type NameOrId<T extends number | string> = T extends number //可以使用三元表达式
+     ? IdLabel
+     : NameLabel;
+   
+   type ToArray<Type> = Type extends any ? Type[] : never; 
+   type StrArrOrNumArr = ToArray<string | number>;  //三元表达式会对union中的每一个类型进行判断
+   //StrArrOrNumArr = string[] | number[]
+   ```
+
+8. Mapped类型
+
+   ```ts
+   //1. mapped类型通常使用in keyof来组成联合类型，遍历所有的键组成新的类型
+   type OptionsFlags<Type> = { 
+     [Property in keyof Type]: boolean;
+   };
+   
+   //2. 在mapping的时候还可以通过+，-修改readonly和？（可选）属性，不写+-默认为+
+   type CreateMutable<Type> = {
+     -readonly [Property in keyof Type]: Type[Property]; //去除readonly属性
+   };
+   type LockedAccount = {
+     readonly id: string;
+     readonly name: string;
+   };
+   type UnlockedAccount = CreateMutable<LockedAccount>;
+   //去除可选属性
+   type Concrete<Type> = {
+     [Property in keyof Type]-?: Type[Property];
+   };
+   type MaybeUser = {
+     id: string;
+     name?: string;
+     age?: number;
+   };
+   type User = Concrete<MaybeUser>;
+   
+   //3. 还可以使用as关键字，对键名重命名
+   /*
+   type Getters<Type> = {
+       [Property in keyof Type as `get${Capitalize<string & Property>}`]: () => Type[Property]
+   };
+   interface Person {
+       name: string;
+       age: number;
+       location: string;
+   }
+    
+   type LazyPerson = Getters<Person>;
+   //type LazyPerson = {
+       getName: () => string;
+       getAge: () => number;
+       getLocation: () => string;
+   }
+   */
+   
+   //4. 去除某些键
+   type RemoveKindField<Type> = {
+       [Property in keyof Type as Exclude<Property, "kind">]: Type[Property]
+   };
+   interface Circle {
+       kind: "circle";
+       radius: number;
+   }
+   ```
+
+9. 内置操作String的类型
+
+   ```ts
+   //1. Uppercase<StringType>
+   //2. Lowercase<StringType>
+   //3. Capitalize<StringType>
+   //4. Uncapitalize<StringType>
+   type Greeting = "Hello, world"
+   type ShoutyGreeting = Uppercase<Greeting> //ShoutyGreeting = "HELLO, WORLD"
    ```
 
    
